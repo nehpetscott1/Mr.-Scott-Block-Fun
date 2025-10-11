@@ -1,0 +1,38 @@
+# Audio files (large files should be managed separately)
+audio/*.mp3
+audio/*.wav
+audio/*.ogg
+
+# Image files (large files should be managed separately)
+img/*.webp
+img/*.png
+img/*.jpg
+img/*.jpeg
+
+# Keep the README files in those directories
+!audio/README.md
+!img/README.md
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*.tmp
+*.log
+
+# Node modules (if anyone adds build tools later)
+node_modules/
+package-lock.json
+
+# Build outputs
+dist/
+build/

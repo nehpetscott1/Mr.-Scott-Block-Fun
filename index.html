@@ -1162,4 +1162,123 @@ function ku(code){
       input.lastDir=input.left?-1:0; 
       break;
     case'ArrowDown': case'KeyS': 
-      input.down
+      input.down=false; 
+      break;
+  }
+}
+
+// Event listeners
+document.addEventListener('keydown', e=>{ 
+  if(state.gameOver || !state.gameStarted || (modalStart.classList.contains('hidden') && modalOver.classList.contains('hidden') && modalTutorial.classList.contains('hidden'))) {
+    if(state.gameStarted && !state.gameOver) kd(e.code); 
+  } else {
+    if(e.code==='Space'||e.code==='Enter'){ 
+      if(!modalStart.classList.contains('hidden')) startGame(); 
+      else if(!modalOver.classList.contains('hidden')) startGame(); 
+    }
+  }
+});
+document.addEventListener('keyup', e=>{ if(state.gameStarted && !state.gameOver) ku(e.code); });
+
+// Button clicks
+btnStart.addEventListener('click', startGame);
+btnDoStart.addEventListener('click', startGame);
+btnAgain.addEventListener('click', startGame);
+btnPause.addEventListener('click', pauseToggle);
+btnRotate.addEventListener('click', ()=>{ markInput(); rotateCurCW(); });
+btnDrop.addEventListener('click', ()=>{ markInput(); hardDrop(); });
+btnHold.addEventListener('click', ()=>{ markInput(); holdSwap(); });
+btnExport.addEventListener('click', exportCSV);
+btnResetData.addEventListener('click', ()=>{ 
+  if(confirm('Clear all session data?')){ 
+    localStorage.removeItem(CLASS_KEY); 
+    renderTeacherStats([]); 
+    toast('Data cleared'); 
+  } 
+});
+
+// Options
+optCB.addEventListener('change', ()=>{ 
+  document.body.classList.toggle('colorblind', optCB.checked); 
+});
+optRM.addEventListener('change', ()=>{ 
+  document.body.classList.toggle('reduced-motion', optRM.checked); 
+});
+
+/* =========================
+   TUTORIAL
+========================= */
+const tutSlides = [
+  `<b>Welcome to Mr. Scott's Block Fun!</b><br><br>This is an educational falling-blocks puzzle game with learning analytics for classroom data literacy. Use arrow keys or WASD to move, Up/Space to rotate, Enter to hard drop, and C/Shift to hold.`,
+  
+  `<b>Objective:</b><br><br>Clear horizontal lines by filling them completely with blocks. The game speeds up as you level up. Try to survive as long as possible and achieve the highest score!`,
+  
+  `<b>Controls:</b><br><br>
+  • Left/Right (A/D): Move piece<br>
+  • Down (S): Soft drop<br>
+  • Up/Space: Rotate clockwise<br>
+  • Enter: Hard drop<br>
+  • C/Shift: Hold piece<br>
+  • P: Pause`,
+  
+  `<b>Scoring:</b><br><br>
+  • Single: 100 pts × level<br>
+  • Double: 300 pts × level<br>
+  • Triple: 500 pts × level<br>
+  • Tetris (4 lines): 800 pts × level<br>
+  • T-Spin: Bonus points<br>
+  • Back-to-Back: 1.5× multiplier<br>
+  • Combo: +50 pts per chain<br>
+  • Perfect Clear: +1800 pts`,
+  
+  `<b>Options:</b><br><br>
+  • <b>Ghost:</b> Shows where piece will land<br>
+  • <b>Adaptive Mode:</b> Adjusts difficulty based on performance<br>
+  • <b>Symbolic Boost:</b> Bonus scoring for accuracy<br>
+  • <b>Daily Seed:</b> Same random sequence each day<br>
+  • <b>Queue Size:</b> Number of next pieces shown (3-5)`,
+  
+  `<b>Teacher Analytics:</b><br><br>This game collects detailed metrics for data literacy education:<br><br>
+  • Lines per minute (LPM)<br>
+  • Input latency<br>
+  • Piece placements<br>
+  • T-Spins and Perfect Clears<br>
+  • Combos and Back-to-Back chains<br><br>
+  Export data as CSV for analysis!`
+];
+
+let tutIndex = 0;
+function showTut(){
+  tutorialContent.innerHTML = tutSlides[tutIndex];
+  tutProgress.textContent = `${tutIndex+1} / ${tutSlides.length}`;
+  tutPrev.disabled = tutIndex === 0;
+  tutNext.textContent = tutIndex === tutSlides.length-1 ? 'Done' : 'Next →';
+}
+btnOpenTutorial.addEventListener('click', ()=>{ 
+  tutIndex=0; 
+  showTut(); 
+  modalStart.classList.add('hidden'); 
+  modalTutorial.classList.remove('hidden'); 
+});
+tutPrev.addEventListener('click', ()=>{ 
+  if(tutIndex>0){ tutIndex--; showTut(); } 
+});
+tutNext.addEventListener('click', ()=>{ 
+  if(tutIndex<tutSlides.length-1){ 
+    tutIndex++; 
+    showTut(); 
+  } else { 
+    modalTutorial.classList.add('hidden'); 
+    modalStart.classList.remove('hidden'); 
+  } 
+});
+
+/* =========================
+   INIT
+========================= */
+renderTeacherStats(JSON.parse(localStorage.getItem(CLASS_KEY)||"[]"));
+makeBoard();
+updateDisplay();
+</script>
+</body>
+</html>
