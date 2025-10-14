@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Tetris Game</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #000;
+            color: #fff;
+        }
+        canvas {
+            border: 1px solid #fff;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="tetris" width="240" height="400"></canvas>
+    <script>
+        const canvas = document.getElementById('tetris');
+        const context = canvas.getContext('2d');
+        
+        context.scale(20, 20);
+
+        function drawSquare(x, y, color) {
+            context.fillStyle = color;
+            context.fillRect(x, y, 1, 1);
+        }
+
+        function drawBoard(board) {
+            board.forEach((row, y) => {
+                row.forEach((value, x) => {
+                    if (value) drawSquare(x, y, value);
+                });
+            });
+        }
+
+        function createBoard(width, height) {
+            const board = [];
+            for (let y = 0; y < height; y++) {
+                board.push(Array(width).fill(null));
+            }
+            return board;
+        }
+
+        const board = createBoard(12, 20);
+        drawBoard(board);
+
+        // Additional Tetris game logic, piece definitions, collision detection, etc.
+        // This is where you would add the game mechanics
+    </script>
+</body>
+</html>
