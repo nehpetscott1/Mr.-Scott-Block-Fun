@@ -201,7 +201,7 @@
       <div class="side-panel">
         <div class="panel-title">CONTROLS</div>
         <div class="controls">
-          <button class="btn btn-primary" id="startBtn">START GAME</button>
+          <button class="btn btn-primary" id="startBtn" onclick="startGame()">START GAME</button>
           <button class="btn hidden" id="pauseBtn">PAUSE</button>
           <button class="btn" id="rotateBtn">ROTATE</button>
           <button class="btn" id="dropBtn">HARD DROP</button>
@@ -305,7 +305,7 @@
 
   <script>
   /************************************************************
-   * MC TETRIS — CANVAS EDITION (clean build)
+   * MC TETRIS — CANVAS EDITION (fixed build)
    ************************************************************/
 
   const MUSIC_TRACKS = [
@@ -347,21 +347,20 @@
 
   const canvas = document.getElementById('gameCanvas');
   const ctx = canvas.getContext('2d', { alpha: false });
-  const CSS_CELL = 32;              // logical size in CSS pixels
+  const CSS_CELL = 32;
   const BOARD_WIDTH = 10;
   const BOARD_HEIGHT = 20;
 
-  // DPR-aware canvas sizing for crisp pixels
+  // DPR-aware canvas sizing
   function resizeCanvas() {
     const dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
-    // Keep CSS size the same, scale backing store
     const cssW = BOARD_WIDTH * CSS_CELL;
     const cssH = BOARD_HEIGHT * CSS_CELL;
     canvas.style.width = cssW + 'px';
     canvas.style.height = cssH + 'px';
     canvas.width = cssW * dpr;
     canvas.height = cssH * dpr;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // draw in CSS pixels
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
   resizeCanvas();
   window.addEventListener('resize', resizeCanvas);
@@ -492,13 +491,14 @@
     currentMusic = new Audio(trackUrl);
     currentMusic.loop = true;
     currentMusic.volume = 0.25;
-    currentMusic.play().catch(()=>{ /* autoplay might be blocked until user gesture */ });
+    currentMusic.play().catch(()=>{ /* autoplay blocked until a gesture */ });
   }
 
   let state={};
   let rngSeed=Math.floor(Math.random()*1e9)>>>0;
   let queue=[], canHold=true, lockSince=null, loopHandle=0;
   let lastActionWasRotate=false;
+  let safetyTimerId = null; // safety timer holder
 
   let sessionStart=Date.now();
   const stats={ tspins:0, perfects:0 };
@@ -582,12 +582,8 @@
   function spawnPiece(type){ 
     const d=TETROMINOES[type]; 
     return { 
-      type, 
-      class:d.class, 
-      o:0, 
-      shape:d.shape.map(r=>r.slice()), 
-      x:Math.floor(BOARD_WIDTH/2)-Math.floor(d.shape[0].length/2), 
-      y:-1 
+      type, class:d.class, o:0, shape:d.shape.map(r=>r.slice()),
+      x:Math.floor(BOARD_WIDTH/2)-Math.floor(d.shape[0].length/2), y:-1 
     }; 
   }
 
@@ -615,9 +611,7 @@
 
   function rotCW(shape){ 
     const r=shape.length,c=shape[0].length,out=Array.from({length:c},()=>Array(r).fill(0)); 
-    for(let i=0;i<r;i++) 
-      for(let j=0;j<c;j++) 
-        out[j][r-1-i]=shape[i][j]; 
+    for(let i=0;i<r;i++) for(let j=0;j<c;j++) out[j][r-1-i]=shape[i][j]; 
     return out; 
   }
 
@@ -664,7 +658,6 @@
 
   function drawNext(){ 
     const minis=[...nextList.querySelectorAll('.mini-grid')]; 
-    // Hide/show to match queue size
     minis.forEach((m,i)=>{ m.style.display = (i < (state.queueSize||5)) ? '' : 'none'; });
     for(let i=0;i<minis.length;i++){ 
       const t=queue[i]; 
@@ -738,6 +731,7 @@
     return rows; 
   }
 
+  // FIXED: remove rows in descending order after flashing to avoid index shifting
   function animateClearAndApply(rows, onDone){
     let flashCount = 0;
     const maxFlashes = 4;
@@ -752,7 +746,8 @@
       }
       if(flashCount >= maxFlashes){
         clearInterval(flashInterval);
-        for(const y of rows){
+        const sortedRows = rows.slice().sort((a,b)=>b-a);
+        for(const y of sortedRows){
           state.board.splice(y, 1);
           state.board.unshift(Array(BOARD_WIDTH).fill(null));
         }
@@ -964,21 +959,9 @@
     rngSeed = optDaily.checked ? dailySeed() : ((+optSeed.value)||Math.floor(Math.random()*1e9))>>>0;
 
     state={ 
-      board:[], 
-      cur:null, 
-      hold:null, 
-      score:0, 
-      lines:0, 
-      level:1, 
-      paused:false, 
-      gameOver:false,
-      acc:0, 
-      downHeld:false, 
-      gameStarted:true, 
-      adaptive, 
-      ghost, 
-      symbolic, 
-      queueSize:qsize 
+      board:[], cur:null, hold:null, score:0, lines:0, level:1, 
+      paused:false, gameOver:false, acc:0, downHeld:false, gameStarted:true, 
+      adaptive, ghost, symbolic, queueSize:qsize 
     };
 
     sessionStart=Date.now();
@@ -1010,12 +993,23 @@
     cancelAnimationFrame(loopHandle); 
     lastTs=performance.now(); 
     loopHandle = requestAnimationFrame(loop);
+
+    // Safety timeout to catch a stuck loop (dev aid; harmless in prod)
+    clearTimeout(safetyTimerId);
+    safetyTimerId = setTimeout(()=>{
+      if(state.gameStarted && !state.gameOver && !state.paused){
+        console.error('Game loop safety timeout triggered');
+        cancelAnimationFrame(loopHandle);
+        alert('Game encountered an error and has been stopped.');
+      }
+    }, 30000);
   }
 
   function gameOver(){
     if(state.gameOver) return;
     state.gameOver=true; 
     cancelAnimationFrame(loopHandle); 
+    clearTimeout(safetyTimerId);
     SND.over();
     stopMusic();
     
@@ -1139,7 +1133,7 @@
     if(e.key===KEYS.down) state.downHeld=false; 
   });
 
-  // UI bindings
+  // UI bindings (also have inline onclick as fallback)
   startBtn.addEventListener('click', startGame);
   pauseBtn.addEventListener('click',togglePause);
   rotateBtn.addEventListener('click',()=> rotateCurCW());
@@ -1152,50 +1146,27 @@
     if(state) { state.queueSize = +optQueue.value; drawNext(); }
   });
 
-  // Touch convenience: tap triggers click
+  // Touch convenience
   [...document.querySelectorAll('.btn')].forEach(b=> b.addEventListener('touchstart', e=>{ 
     e.preventDefault(); b.click(); 
   }, {passive:false}));
 
   // Tutorial slides
   const slides = [
-    { 
-      title:"Welcome", 
-      html:`<p>This tutorial explains controls, the 7-bag randomizer, lock delay, ghost piece, SRS wall-kicks, and T-Spins.</p><p>Use the buttons below to navigate. You can exit anytime.</p>` 
-    },
-    { 
-      title:"Controls", 
-      html:`<ul class="tut-list"><li>Move: <b>← →</b>, Soft Drop: <b>↓</b>, Hard Drop: <b>Enter</b></li><li>Rotate: <b>↑</b> or <b>Space</b>, Hold: <b>C</b> or <b>Shift</b></li><li>Pause: <b>P</b></li></ul><p>You can customize keys via <b>KEY BINDS</b> button.</p>` 
-    },
-    { 
-      title:"7-Bag & Lock Delay", 
-      html:`<p>Pieces are dealt from shuffled sets of all 7 tetrominoes — a <b>7-bag</b>. This avoids long droughts.</p><p><b>Lock delay</b> gives you a short window to adjust pieces after they land, allowing finesse moves.</p>` 
-    },
-    { 
-      title:"SRS & Wall-Kicks", 
-      html:`<p>We use <b>SRS</b> (Super Rotation System). When rotating near walls or stacks, the piece can "kick" sideways to complete the rotation.</p><p>This makes tight placements and T-Spins possible!</p>` 
-    },
-    { 
-      title:"Hands-on: T-Spin Drill", 
-      html:`<p>Goal: Perform a <b>T-Spin Single</b>.</p><ol class="tut-list"><li>We pre-load the board with a T-slot.</li><li>Spawn a <b>T</b> piece. Rotate into the slot and lock it.</li><li>You'll see a success banner when complete.</li></ol><button class="btn btn-primary" onclick="startDrill()" style="margin-top:1rem;">START DRILL</button>` 
-    },
-    { 
-      title:"Nice!", 
-      html:`<p>You completed the T-Spin drill. T-Spins give bonus points: +${TSPIN_BONUS} plus line clears.</p><p>Close tutorial and hit <b>START GAME</b>.</p>` 
-    }
+    { title:"Welcome", html:`<p>This tutorial explains controls, the 7-bag randomizer, lock delay, ghost piece, SRS wall-kicks, and T-Spins.</p><p>Use the buttons below to navigate. You can exit anytime.</p>` },
+    { title:"Controls", html:`<ul class="tut-list"><li>Move: <b>← →</b>, Soft Drop: <b>↓</b>, Hard Drop: <b>Enter</b></li><li>Rotate: <b>↑</b> or <b>Space</b>, Hold: <b>C</b> or <b>Shift</b></li><li>Pause: <b>P</b></li></ul><p>You can customize keys via <b>KEY BINDS</b> button.</p>` },
+    { title:"7-Bag & Lock Delay", html:`<p>Pieces are dealt from shuffled sets of all 7 tetrominoes — a <b>7-bag</b>. This avoids long droughts.</p><p><b>Lock delay</b> gives you a short window to adjust pieces after they land, allowing finesse moves.</p>` },
+    { title:"SRS & Wall-Kicks", html:`<p>We use <b>SRS</b> (Super Rotation System). When rotating near walls or stacks, the piece can "kick" sideways to complete the rotation.</p><p>This makes tight placements and T-Spins possible!</p>` },
+    { title:"Hands-on: T-Spin Drill", html:`<p>Goal: Perform a <b>T-Spin Single</b>.</p><ol class="tut-list"><li>We pre-load the board with a T-slot.</li><li>Spawn a <b>T</b> piece. Rotate into the slot and lock it.</li><li>You'll see a success banner when complete.</li></ol><button class="btn btn-primary" onclick="startDrill()" style="margin-top:1rem;">START DRILL</button>` },
+    { title:"Nice!", html:`<p>You completed the T-Spin drill. T-Spins give bonus points: +${TSPIN_BONUS} plus line clears.</p><p>Close tutorial and hit <b>START GAME</b>.</p>` }
   ];
 
   function openTutorial(){ 
-    tut.step=0; 
-    tut.active=true; 
-    tut.practiceMode=false; 
-    renderSlide(); 
+    tut.step=0; tut.active=true; tut.practiceMode=false; renderSlide(); 
     tutorialModal.classList.remove('hidden'); 
   }
   function closeTutorial(){ 
-    tut.active=false; 
-    tut.practiceMode=false; 
-    tutorialModal.classList.add('hidden'); 
+    tut.active=false; tut.practiceMode=false; tutorialModal.classList.add('hidden'); 
     if(!state.gameStarted) startModal.classList.remove('hidden'); 
   }
   function renderSlide(){ 
@@ -1204,13 +1175,7 @@
     tut.prev.disabled=(tut.step===0); 
     tut.next.textContent=(tut.step===slides.length-1)?'Finish':'Next'; 
   }
-  function tutAdvance(){ 
-    if(tut.step<slides.length-1){ 
-      tut.step++; renderSlide(); 
-    } else { 
-      closeTutorial(); 
-    } 
-  }
+  function tutAdvance(){ if(tut.step<slides.length-1){ tut.step++; renderSlide(); } else { closeTutorial(); } }
   function tutBack(){ if(tut.step>0){ tut.step--; renderSlide(); } }
 
   tut.next.addEventListener('click', ()=> tutAdvance());
@@ -1289,7 +1254,7 @@
     applyTheme(saved);
   }
 
-  // Initial safe paint (empty previews/hold)
+  // Initial safe paint
   try{ 
     state = { board:[], cur:null, hold:null, score:0, lines:0, level:1, paused:true, gameOver:false, acc:0, downHeld:false, gameStarted:false, adaptive:true, ghost:true, symbolic:false, queueSize:+optQueue.value||5 };
     makeBoard(); 
@@ -1301,10 +1266,19 @@
     canvas.parentElement.innerHTML='<div style="color:#ff5a5a;padding:1rem;text-align:center;">Load error. See console.</div>'; 
   }
 
+  // Expose for inline handlers
   window.startGame=startGame;
   window.openTutorial=openTutorial;
 
   window.addEventListener('DOMContentLoaded', initThemeUI);
+
+  // Last-ditch bind in case CSP blocks inline
+  window.addEventListener('load', ()=>{
+    const btn=document.getElementById('startBtn');
+    if(btn && typeof window.startGame==='function'){
+      btn.addEventListener('click', window.startGame);
+    }
+  });
   </script>
 </body>
 </html>
