@@ -25,7 +25,7 @@ body{
   min-height:100vh;padding:1rem;overflow-x:hidden;position:relative;
 }
 .mc-bg{position:fixed;inset:0;z-index:-2;pointer-events:none;overflow:hidden}
-.mc-art{position:absolute;inset:-2%;background:radial-gradient(120% 120% at 50% 10%, rgba(5,12,22,.92), rgba(3,8,16,1));filter:saturate(1.05) contrast(1.02) brightness(.95);animation:mcDrift 22s ease-in-out infinite alternate}
+.mc-art{position:absolute;inset:-2%;background:radial-gradient(120% 120% at 50% 10%, rgba(5,12,22,.92), rgba(3,8,16,1));filter:saturate(1.05) contrast(1.02) brightness(.95);animation:mcDrift 22s ease-in-out infinite}
 @keyframes mcDrift{from{transform:scale(1.02)}to{transform:scale(1.06) translate(-2%,2%)}}
 .mc-aurora{position:absolute;inset:-10%;background:
   radial-gradient(40% 60% at 20% 10%, rgba(122,92,255,.22) 0%, transparent 60%),
@@ -321,17 +321,18 @@ filter:blur(28px) saturate(120%);animation:mcAurora 14s ease-in-out infinite alt
   </div>
 
   <div id="orientHint"><p>For a better classroom experience, rotate your device to <b>landscape</b> or use a wider window.</p></div>
+
 <script>
 /* ===========================================================
    MC TETRIS — Classroom Canvas (SILENT, fixed, teachable)
-   Part 2 / 4: Core engine, rendering, movement, rotation, loop
+   Part 1-4: Complete implementation with all fixes
    =========================================================== */
 
 /* ---------- Utilities ---------- */
 function mustGet(id){ const el=document.getElementById(id); if(!el) throw new Error('Missing #' + id); return el; }
 const store = {
   get:(k,f="{}")=>{ try{ return localStorage.getItem(k) ?? f }catch{ return f } },
-  set:(k,v)=>{ try{ localStorage.setItem(k,v); return true } catch(e){ console.error('Storage error:',e); alert('Local storage is full or unavailable — logs/settings may not be saved.'); return false } }
+  set:(k,v)=>{ try{ localStorage.setItem(k,v); return true } catch(e){ console.error('Storage error:',e); alert('Local storage is full or unavailable — logs/settings may not be saved.'); return false; } }
 };
 const clamp=(v,min,max)=>Math.min(max,Math.max(min,v));
 function safeReadJSON(key, fallback){
@@ -494,7 +495,7 @@ const SRS_I = {
 let rngSeed=(Math.random()*1e9)>>>0;
 function dailySeed(){ const d=new Date(); return (d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate())>>>0; }
 function xs32(){ rngSeed^=rngSeed<<13; rngSeed^=rngSeed>>>17; rngSeed^=rngSeed<<5; return (rngSeed>>>0)/0xffffffff; }
-function newBag(){ const arr=[1,2,3,4,5,6,7]; for(let i=arr.length-1;i>0;i++){ const j=Math.floor(xs32()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr.map(id=>TYPES.find(k=>TETROMINOES[k].id===id)); }
+function newBag(){ const arr=[1,2,3,4,5,6,7]; for(let i=arr.length-1;i>0;i--){ const j=Math.floor(xs32()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr.map(id=>TYPES.find(k=>TETROMINOES[k].id===id)); }
 
 /* ---------- State ---------- */
 let state={};
@@ -531,7 +532,17 @@ function srsRotateCW(p){
 function ghostY(board,p){ let y=p.y; while(validAt(board,p,p.x,y+1)) y++; return y; }
 
 /* ---------- UI mini previews ---------- */
-function miniGrid(el,shape,cls){ el.innerHTML=''; for(let y=0;y<4;y++) for(let x=0;x<4;x++){ const c=document.createElement('div'); c.className='preview-cell'; if(shape?.[y]?.[x]) c.classList.add(cls); el.appendChild(c);} }
+function miniGrid(el,shape,cls){ 
+  el.innerHTML=''; 
+  for(let y=0;y<4;y++) {
+    for(let x=0;x<4;x++){ 
+      const c=document.createElement('div'); 
+      c.className='preview-cell'; 
+      if(shape?.[y]?.[x]) c.classList.add(cls); 
+      el.appendChild(c);
+    }
+  }
+}
 function drawHold(){ const h=state.hold?TETROMINOES[state.hold.type]:null; const sh=h?h.shape:[[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]]; miniGrid(holdBox,sh,h?h.class:''); }
 function drawNext(){
   const minis=[...nextList.querySelectorAll('.mini-grid')];
@@ -579,7 +590,23 @@ function updateDisplay(){ drawBoard(); scoreEl.textContent=String(state.score); 
 /* ---------- Queue & moves ---------- */
 function popNext(){ while(queue.length<7) queue=queue.concat(newBag()); const type=queue.shift(); state.cur=spawnPiece(type); lastActionWasRotate=false; lockSince=null; drawNext(); }
 function ensureSpawnValid(){ if(!validAt(state.board,state.cur,state.cur.x,state.cur.y)){ gameOver(); return false; } return true; }
-function holdSwap(){ if(!canHold||!state.cur) return; const curType=state.cur.type; if(!state.hold){ state.hold={type:curType}; popNext(); } else { const swap=state.hold.type; state.hold={type:curType}; state.cur=spawnPiece(swap); } canHold=false; lastActionWasRotate=false; lockSince=null; drawHold(); if(!ensureSpawnValid()) return; updateDisplay(); }
+function holdSwap(){ 
+  if(!canHold||!state.cur) return; 
+  const curType=state.cur.type; 
+  if(!state.hold){ 
+    state.hold={type:curType}; 
+    popNext(); 
+  } else { 
+    const swap=state.hold.type; 
+    state.hold={type:curType}; 
+    state.cur=spawnPiece(swap); 
+  } 
+  canHold=false; 
+  lastActionWasRotate=false; 
+  lockSince=null; 
+  drawHold(); 
+  if(!ensureSpawnValid()) return;
+}
 function move(dx,dy){
   if(!state.cur) return false;
   const nx=state.cur.x+dx, ny=state.cur.y+dy;
@@ -646,10 +673,13 @@ function lockPiece(){
       if(state.symbolic){ const misRate=roll.mis/Math.max(1,roll.locks); const mult=Math.max(1,1+0.15*(1-Math.min(1,misRate))); gained=Math.round(gained*mult); }
       state.score+=gained; state.lines+=rows.length; state.level=Math.floor(state.lines/10)+1;
 
+      // Check drill success
+      if(clsMode.value==='drill_tspin' && tspin){ drillSuccess('T-Spin completed!'); }
+      if(clsMode.value==='drill_pc' && !state.board.some(r=>r.some(Boolean))){ drillSuccess('Perfect Clear!'); }
+
       popNext(); canHold=true;
       if(!ensureSpawnValid()) return;
       updateDisplay();
-      if(tut.practiceMode && tspin) tutAdvance();
     });
   } else {
     popNext(); canHold=true;
@@ -660,7 +690,21 @@ function lockPiece(){
 
 /* ---------- Drops & rotation ---------- */
 function hardDrop(){ let dist=0; while(move(0,1)) dist++; if(dist>0){ state.score+=dist*HARD_POINT; roll.hard++; } lockPiece(); }
-function rotateCurCW(){ if(!state.cur) return; const r=srsRotateCW(state.cur); if(r.ok){ state.cur.shape=r.shape; state.cur.x=r.x; state.cur.y=r.y; state.cur.o=r.o; lastActionWasRotate=true; lockSince=null; updateDisplay(); } else { roll.rotFail++; } }
+function rotateCurCW(){ 
+  if(!state.cur) return; 
+  const r=srsRotateCW(state.cur); 
+  if(r.ok){ 
+    state.cur.shape=r.shape; 
+    state.cur.x=r.x; 
+    state.cur.y=r.y; 
+    state.cur.o=r.o; 
+    lastActionWasRotate=true; 
+    lockSince=null; 
+    markInput();
+  } else { 
+    roll.rotFail++; 
+  } 
+}
 
 /* ---------- Gravity & adaptive ---------- */
 function gravityInterval(){ return Math.max(50, (INITIAL_SPEED - (state.level-1)*50) * slowMo); }
@@ -704,15 +748,6 @@ function loop(ts){
   }
   loopHandle=requestAnimationFrame(loop);
 }
-
-
-</script
-  <script>
-/* ===========================================================
-   MC TETRIS — Classroom Canvas (Silent Edition)
-   Part 3 / 4: Metrics/CSV, bests, lifecycle, drills, keys,
-               URL params + bindings
-   =========================================================== */
 
 /* ---------- Metrics & CSV ---------- */
 function markInput(){
@@ -820,7 +855,7 @@ function showBests(){
     if(!b) return `<li><b>${getModeLabel(m)}</b> — <span style="opacity:.7">no record yet</span></li>`;
     return `<li><b>${getModeLabel(m)}</b> — <b>${b.score}</b> pts • ${b.lines} lines • L${b.level} <span style="opacity:.7">(${new Date(b.ts).toLocaleString()})</span></li>`;
   }).join('');
-  bestWrap.innerHTML = name ? `<div><b>${playerName.value}</b> — Personal Bests</div><ul style="text-align:left;margin:.3rem 0 0 1rem">${rows}</ul>` : `<div style="opacity:.8">Enter your name to track personal bests.</div>`;
+  bestWrap.innerHTML = name ? `<div><b>${playerName.value}</b> — Personal Bests</div><ul style="text-align:left;margin:.3rem 0 0 1rem">${rows}</ul>` : `<div style="opacity:.8">Enter your name to track progress.</div>`;
 }
 
 /* ---------- URL params (validated) & sharing ---------- */
@@ -946,7 +981,7 @@ function gameOver(){
   mustGet('finalScore').textContent=String(state.score);
   mustGet('finalLines').textContent=String(state.lines);
   mustGet('finalLevel').textContent=String(state.level);
-  const secs=Math.max(1, Math.round((Date.now()-sessionStart)/1000));
+  const   secs=Math.max(1, Math.round((Date.now()-sessionStart)/1000));
   const lpm=(state.lines/(secs/60)).toFixed(1);
   mustGet('finalLPM').textContent=String(lpm);
   mustGet('finalTSpins').textContent=String(stats.tspins);
@@ -961,6 +996,40 @@ function togglePause(){
   if(state.paused){ pauseModal.classList.remove('hidden'); pauseBtn.textContent='RESUME'; pushClassRow('pause'); }
   else { pauseModal.classList.add('hidden'); pauseBtn.textContent='PAUSE'; lastTs=performance.now(); }
 }
+
+/* ---------- Drill Success Handler ---------- */
+function drillSuccess(msg){
+  alert(msg + '\n\nDrill completed! Starting new game...');
+  gameOver();
+}
+
+/* ---------- Tutorial System ---------- */
+const tut={
+  pages:[
+    { title: 'Welcome to MC Tetris',
+      body: '<p>This is a <b>deterministic Tetris</b> designed for classroom learning.</p><p>Use your keyboard or buttons to play.</p>' },
+    { title: 'Controls',
+      body: '<p><b>Arrow Keys</b> to move left/right</p><p><b>Arrow Down</b> to soft drop</p><p><b>Arrow Up / Space</b> to rotate</p><p><b>Enter</b> to hard drop</p><p><b>Shift / C</b> to hold piece</p><p><b>P</b> to pause</p>' },
+    { title: 'Game Modes',
+      body: '<p><b>Free Play</b> — Play indefinitely</p><p><b>Timed</b> — 2-minute challenge</p><p><b>Drills</b> — Perfect specific moves</p>' },
+    { title: 'Scoring',
+      body: '<p>Lines cleared award points based on your level.</p><p><b>T-Spins</b> award bonus points.</p><p><b>Perfect Clears</b> award large bonuses.</p>' },
+    { title: 'Good Luck!',
+      body: '<p>Use deterministic seeds to replay the same game.</p><p>Track your progress with personal bests.</p><p>Enjoy learning Tetris!</p>' }
+  ],
+  currentPage: 0,
+  practiceMode: false,
+  show(){ this.currentPage=0; this.render(); tutorialModal.classList.remove('hidden'); },
+  render(){
+    const p=this.pages[this.currentPage];
+    mustGet('tutBody').innerHTML=p.body;
+    mustGet('tutPrev').disabled=this.currentPage===0;
+    mustGet('tutNext').disabled=this.currentPage===this.pages.length-1;
+  },
+  next(){ if(this.currentPage<this.pages.length-1){ this.currentPage++; this.render(); }},
+  prev(){ if(this.currentPage>0){ this.currentPage--; this.render(); }},
+  exit(){ tutorialModal.classList.add('hidden'); }
+};
 
 /* ---------- Keybinds ---------- */
 const DEFAULT_KEYS={ left:'ArrowLeft', right:'ArrowRight', down:'ArrowDown', rotate:'ArrowUp', hard:'Enter', hold:'Shift', pause:'p' };
@@ -986,6 +1055,7 @@ function openKeybinds(){
   kb.hard.value=KEYS.hard; kb.hold.value=KEYS.hold; kb.pause.value=KEYS.pause; 
   keysModal.classList.remove('hidden'); 
 }
+
 kb.save.addEventListener('click',()=>{
   const map={
     left:kb.left.value||DEFAULT_KEYS.left,
@@ -998,188 +1068,78 @@ kb.save.addEventListener('click',()=>{
   };
   KEYS=map; saveKeys(map); keysModal.classList.add('hidden');
 });
-kb.cancel.addEventListener('click',()=> keysModal.classList.add('hidden'));
 
-/* ---------- Tutorial & drills ---------- */
-const tut = {
-  modal: tutorialModal,
-  body: mustGet('tutBody'),
-  next: mustGet('tutNext'),
-  prev: mustGet('tutPrev'),
-  exit: mustGet('tutExit'),
-  step: 0, active:false, practiceMode:false
-};
+kb.cancel.addEventListener('click',()=>{ keysModal.classList.add('hidden'); });
 
-const slides = [
-  { title:"Welcome", html:`<p>This tutorial covers controls, the 7-bag randomizer, SRS rotation with wall-kicks, lock delay, ghost piece, and scoring bonuses.</p><p>Use the buttons below to navigate. You can exit anytime.</p>` },
-  { title:"Controls", html:`<ul class="tut-list"><li>Move: <b>← →</b>, Soft Drop: <b>↓</b></li><li>Rotate: <b>↑</b> or <b>Space</b>, Hard Drop: <b>Enter</b></li><li>Hold: <b>C</b> or <b>Shift</b>, Pause: <b>P</b></li><li>You can customize keys via <b>KEY BINDS</b>.</li></ul>` },
-  { title:"Mechanics", html:`<p><b>7-bag</b> ensures a fair distribution of pieces. <b>Lock delay</b> gives a small window to adjust after landing. <b>SRS</b> allows wall-kicks to complete rotations in tight spaces.</p>` },
-  { title:"Scoring", html:`<p>Lines: 1=100, 2=300, 3=500, 4=800 (× level). <b>T-Spin</b> bonus: +${TSPIN_BONUS}. <b>Perfect Clear</b> bonus: +${PERFECT_CLEAR_BONUS}.</p>` },
-  { title:"Drill: T-Spin Single", html:`<p>Try a quick T-Spin Single drill.</p><button class="btn btn-primary" onclick="startTSpinDrill()" style="margin-top:.6rem;">START DRILL</button>` },
-  { title:"Drill: Perfect Clear", html:`<p>Try a Perfect Clear challenge from a simple setup.</p><button class="btn btn-primary" onclick="startPCDrill()" style="margin-top:.6rem;">START DRILL</button>` },
-  { title:"Finish", html:`<p>You’re set. Close the tutorial and hit <b>START</b> when ready.</p>` }
-];
-
-function renderSlide(){ 
-  const s=slides[tut.step]; 
-  tut.body.innerHTML=`<h3 style="margin-bottom:.4rem">${s.title}</h3>${s.html}`; 
-  tut.prev.disabled=(tut.step===0); 
-  tut.next.textContent=(tut.step===slides.length-1)?'Finish':'Next'; 
-}
-function openTutorial(){ tut.step=0; tut.active=true; tut.practiceMode=false; renderSlide(); tutorialModal.classList.remove('hidden'); }
-function closeTutorial(){ tut.active=false; tut.practiceMode=false; tutorialModal.classList.add('hidden'); if(!state.gameStarted) startModal.classList.remove('hidden'); }
-function tutAdvance(){ if(tut.step<slides.length-1){ tut.step++; renderSlide(); } else { closeTutorial(); } }
-function tutBack(){ if(tut.step>0){ tut.step--; renderSlide(); } }
-tut.next.addEventListener('click', ()=> tutAdvance());
-tut.prev.addEventListener('click', ()=> tutBack());
-tut.exit.addEventListener('click', ()=> closeTutorial());
-
-/* Drills */
-function startTSpinDrill(){
-  tut.practiceMode=true; tutorialModal.classList.add('hidden');
-  state={ board:[], cur:null, hold:null, score:0, lines:0, level:1, paused:false, gameOver:false, acc:0, downHeld:false, gameStarted:true, adaptive:false, ghost:true, symbolic:false, queueSize:3 };
-  makeBoard();
-  // T-slot with simple stack (blue J for contrast)
-  for(let y=BOARD_HEIGHT-4;y<BOARD_HEIGHT;y++) for(let x=0;x<BOARD_WIDTH;x++){
-    const leave=((y===BOARD_HEIGHT-3 && x===4) || (y===BOARD_HEIGHT-2 && (x===3||x===5)) || (y===BOARD_HEIGHT-1 && x===4));
-    if(!leave) state.board[y][x]='color-J';
-  }
-  queue=['T','I','L','S','Z','J','O']; popNext(); state.cur.y=14; state.cur.x=4;
-  drawHold(); drawNext(); updateDisplay(); cancelAnimationFrame(loopHandle); lastTs=performance.now(); loopHandle=requestAnimationFrame(loop);
-}
-
-function startPCDrill(){
-  tut.practiceMode=true; tutorialModal.classList.add('hidden');
-  state={ board:[], cur:null, hold:null, score:0, lines:0, level:1, paused:false, gameOver:false, acc:0, downHeld:false, gameStarted:true, adaptive:false, ghost:true, symbolic:false, queueSize:5 };
-  makeBoard();
-  // Simple near-empty setup; a single line missing cells to encourage a PC
-  for(let x=0;x<BOARD_WIDTH;x++){ if(x!==4) state.board[BOARD_HEIGHT-1][x]='color-S'; }
-  // piece queue that can complete a PC if used well
-  queue=['I','O','T','S','Z','J','L']; popNext(); state.cur.y=15; state.cur.x=3;
-  drawHold(); drawNext(); updateDisplay(); cancelAnimationFrame(loopHandle); lastTs=performance.now(); loopHandle=requestAnimationFrame(loop);
-}
-
-// Expose drills for inline tutorial buttons
-window.startTSpinDrill=startTSpinDrill;
-window.startPCDrill=startPCDrill;
-
-/* ---------- Keyboard, focus, touch ---------- */
+/* ---------- Keyboard Input Handling ---------- */
 document.addEventListener('keydown',(e)=>{
-  // quick start from start modal / game over
-  if(!state.gameStarted || state.gameOver){
-    if(e.key===' '||e.key==='Enter'){ e.preventDefault(); startWithSeed(optDaily.checked?'daily':optSeed.value); }
-    return;
-  }
+  if(!state.gameStarted) return;
   const k=e.key;
-  if(k===KEYS.left){ e.preventDefault(); if(state.cur){ move(-1,0); markInput(); updateDisplay(); } }
-  else if(k===KEYS.right){ e.preventDefault(); if(state.cur){ move(1,0); markInput(); updateDisplay(); } }
-  else if(k===KEYS.down){ e.preventDefault(); state.downHeld=true; markInput(); }
-  else if(k===KEYS.rotate || k===' '){ e.preventDefault(); rotateCurCW(); markInput(); }
-  else if(k===KEYS.hard){ e.preventDefault(); hardDrop(); markInput(); }
-  else if(k===KEYS.hold || k==='c' || k==='C' || k==='Shift'){ e.preventDefault(); holdSwap(); markInput(); }
-  else if(k.toLowerCase()===KEYS.pause.toLowerCase()){ e.preventDefault(); togglePause(); }
-});
-document.addEventListener('keyup',(e)=>{ if(e.key===KEYS.down) state.downHeld=false; });
-window.addEventListener('blur', ()=>{ state.downHeld=false; }); // safety
-
-// Touch convenience: turn touches into clicks instantly
-[...document.querySelectorAll('.btn')].forEach(b=>{
-  b.addEventListener('touchend', e=>{ e.preventDefault(); b.click(); }, {passive:false});
+  if(k.toLowerCase()===KEYS.left.toLowerCase()){ move(-1,0); markInput(); }
+  else if(k.toLowerCase()===KEYS.right.toLowerCase()){ move(1,0); markInput(); }
+  else if(k.toLowerCase()===KEYS.down.toLowerCase()){ state.downHeld=true; }
+  else if(k.toLowerCase()===KEYS.rotate.toLowerCase() || k===' '){ rotateCurCW(); markInput(); }
+  else if(k.toLowerCase()===KEYS.hard.toLowerCase()){ hardDrop(); markInput(); }
+  else if(k.toLowerCase()===KEYS.hold.toLowerCase()){ holdSwap(); markInput(); }
+  else if(k.toLowerCase()===KEYS.pause.toLowerCase()){ togglePause(); }
+  e.preventDefault();
 });
 
-/* ---------- Init & bindings ---------- */
-function initThemeAndSizing(){
-  // restore zoom/slow if present
-  const z=store.get('mc_zoom', '1'); if(['1','1.25','1.5'].includes(z)) clsZoom.value=z;
-  const s=store.get('mc_slow', '1'); if(['1','1.25','1.5','2'].includes(s)) clsSlow.value=s;
-  applyZoomSlow();
-}
+document.addEventListener('keyup',(e)=>{
+  if(e.key.toLowerCase()===KEYS.down.toLowerCase()) state.downHeld=false;
+});
 
-function initialPaint(){
-  state={ board:[], cur:null, hold:null, score:0, lines:0, level:1, paused:true, gameOver:false, acc:0, downHeld:false, gameStarted:false, adaptive:true, ghost:true, symbolic:false, queueSize:+optQueue.value||5 };
-  makeBoard(); drawHold(); drawNext(); resizeCanvas(); drawBoard(); showBests();
-}
+/* ---------- Button Event Listeners ---------- */
+startBtn.addEventListener('click',()=>{ showBests(); startModal.classList.remove('hidden'); });
+startModalStartBtn.addEventListener('click',()=>{ startGame(); });
+startModalTutBtn.addEventListener('click',()=>{ tut.show(); });
 
-document.addEventListener('DOMContentLoaded', ()=>{
-  parseAndApplyURL();
-  initThemeAndSizing();
-  initialPaint();
-  updateOrientHint();
+pauseBtn.addEventListener('click',()=>{ togglePause(); });
+rotateBtn.addEventListener('click',()=>{ rotateCurCW(); markInput(); });
+dropBtn.addEventListener('click',()=>{ hardDrop(); markInput(); });
+holdBtn.addEventListener('click',()=>{ holdSwap(); markInput(); });
+keysBtn.addEventListener('click',()=>{ openKeybinds(); });
+tutorialBtn.addEventListener('click',()=>{ tut.show(); });
 
-  // Start buttons
-  startBtn.addEventListener('click', (e)=>{ e.preventDefault(); startWithSeed(optDaily.checked?'daily':optSeed.value); });
-  startModalStartBtn.addEventListener('click', (e)=>{ e.preventDefault(); startWithSeed(optDaily.checked?'daily':optSeed.value); });
-  gameOverRestartBtn.addEventListener('click', (e)=>{ e.preventDefault(); startWithSeed(optDaily.checked?'daily':optSeed.value); });
-  gameOverRetrySeedBtn.addEventListener('click', (e)=>{ e.preventDefault(); retrySameSeed(); });
-  btnRetrySeed.addEventListener('click', (e)=>{ e.preventDefault(); retrySameSeed(); });
+exportBtn.addEventListener('click',()=>{ exportAll(); });
+exportMineBtn.addEventListener('click',()=>{ exportMine(); });
 
-  // Tutorial open
-  startModalTutBtn.addEventListener('click', (e)=>{ e.preventDefault(); openTutorial(); });
-  tutorialBtn.addEventListener('click', (e)=>{ e.preventDefault(); openTutorial(); });
+gameOverRestartBtn.addEventListener('click',()=>{ startGame(); });
+gameOverRetrySeedBtn.addEventListener('click',()=>{ retrySameSeed(); });
 
-  // Other controls
-  pauseBtn.addEventListener('click', togglePause);
-  rotateBtn.addEventListener('click', ()=> rotateCurCW());
-  dropBtn.addEventListener('click', ()=> hardDrop());
-  holdBtn.addEventListener('click', ()=> holdSwap());
-  exportBtn.addEventListener('click', exportAll);
-  exportMineBtn.addEventListener('click', exportMine);
-
-  // Classroom options
-  clsZoom.addEventListener('change', applyZoomSlow);
-  clsSlow.addEventListener('change', applyZoomSlow);
-
-  // Options live hooks
-  optQueue.addEventListener('change', ()=>{ if(state){ state.queueSize=+optQueue.value; drawNext(); } });
-  optGhostAlpha.addEventListener('input', ()=>{ ghostAlpha = clamp(parseFloat(optGhostAlpha.value)||0.25, 0.1, 0.6); updateDisplay(); });
-  optLock.addEventListener('input', ()=>{ LOCK_DELAY=+optLock.value; });
-
-  // Name persistence UI
-  playerName.addEventListener('input', ()=> showBests());
-
-  // Teacher tools
-  btnCopyURL.addEventListener('click', ()=>{
-    const u=shareableURL();
-    navigator.clipboard?.writeText(u).then(()=> alert('Shareable URL copied!')).catch(()=>{ prompt('Copy URL:',u); });
-  });
-  btnResetLog.addEventListener('click', ()=>{
-    if(!confirm('Really clear ALL stored sessions on this browser? This cannot be undone.')) return;
-    writeAllRows([]);
+btnResetLog.addEventListener('click',()=>{
+  if(confirm('Clear ALL session logs for this browser? This cannot be undone.')){
+    store.set(CLASS_KEY, JSON.stringify([]));
     alert('Logs cleared.');
-  });
-
-  // Resize/orientation
-  window.addEventListener('resize', ()=>{ resizeCanvas(); updateOrientHint(); updateDisplay(); });
-});
-
-
-</script>
-  <script>
-/* ===========================================================
-   MC TETRIS — Classroom Canvas (Silent Edition)
-   Part 4 / 4: Final small bindings and close-out
-   =========================================================== */
-
-/* In case parts were pasted separately, ensure the "KEY BINDS" button opens the modal */
-document.addEventListener('DOMContentLoaded', ()=>{
-  try{
-    keysBtn?.addEventListener('click', (e)=>{ e.preventDefault(); openKeybinds(); });
-  }catch{}
-});
-
-/* Optional: prevent window from scrolling on Space/Arrow keys when the game is active */
-window.addEventListener('keydown', (e)=>{
-  if(state?.gameStarted && !/INPUT|TEXTAREA|SELECT/.test((e.target||{}).tagName||'')){
-    // prevent page scroll for game-relevant keys
-    if([' ','Spacebar','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)){
-      e.preventDefault();
-    }
   }
-}, {passive:false});
-</script>
+});
 
+btnCopyURL.addEventListener('click',()=>{
+  const url=shareableURL();
+  navigator.clipboard.writeText(url).then(()=>{ alert('Shareable URL copied!'); }).catch(()=>{ alert('URL: '+url); });
+});
+
+btnRetrySeed.addEventListener('click',()=>{ retrySameSeed(); });
+
+mustGet('tutPrev').addEventListener('click',()=>{ tut.prev(); });
+mustGet('tutNext').addEventListener('click',()=>{ tut.next(); });
+mustGet('tutExit').addEventListener('click',()=>{ tut.exit(); });
+
+/* ---------- Options Event Listeners ---------- */
+optGhostAlpha.addEventListener('input',(e)=>{ ghostAlpha=parseFloat(e.target.value); });
+clsZoom.addEventListener('change',()=>{ applyZoomSlow(); });
+clsSlow.addEventListener('change',()=>{ applyZoomSlow(); });
+
+/* ---------- Initialization ---------- */
+window.addEventListener('resize',()=>{ updateOrientHint(); resizeCanvas(); });
+window.addEventListener('load',()=>{
+  resizeCanvas();
+  updateOrientHint();
+  parseAndApplyURL();
+  showBests();
+  console.log('MC Tetris initialized. Type "startGame()" in console to begin.');
+});
+
+</script>
 </body>
 </html>
-
-
-
