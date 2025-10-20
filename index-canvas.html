@@ -16,7 +16,8 @@
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%}
   body{
-    font-family:'JetBrains Mono',monospace; background:var(--space); color:#e6fff6);
+    font-family:'JetBrains Mono',monospace;
+    background:var(--space); color:#e6fff6;
     min-height:100vh; padding:1rem; overflow-x:hidden; position:relative;
   }
   .mc-bg{position:fixed; inset:0; z-index:-2; pointer-events:none; overflow:hidden}
@@ -135,7 +136,7 @@
   <body>
     <div class="mc-bg" aria-hidden="true">
       <div class="mc-art"></div>
-      <div class="mc-aurora"></"></div>
+      <div class="mc-aurora"></div>
       <div class="mc-scan"></div>
       <div class="mc-vignette"></div>
       <div class="mc-watermark">MCSTEPHEN</div>
@@ -259,7 +260,7 @@
       <div class="modal" id="startModal" aria-modal="true" role="dialog">
         <div class="modal-content">
           <div class="modal-title">T  E  T  R  I  S</div>
-          <div class="modal-text">Silent classroom edition  smooth loop, deterministic seeds, teaching tools.</div>
+          <div class="modal-text">Silent classroom edition — smooth loop, deterministic seeds, teaching tools.</div>
           <div id="bestWrap" style="margin:.4rem 0 .2rem; font-size:.9rem; opacity:.85;"></div>
           <div style="display:flex; gap:.6rem; flex-wrap:wrap; justify-content:center;">
             <button class="btn" id="startModalTutBtn" style="min-width:160px;">TUTORIAL</button>
@@ -319,6 +320,18 @@
           <div style="display:flex; gap:.6rem; justify-content:center; margin-top:.6rem;">
             <button class="btn" id="kbCancel">Cancel</button>
             <button class="btn btn-primary" id="kbSave">Save</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal hidden" id="tutorialModal" aria-modal="true" role="dialog">
+        <div class="modal-content" style="max-width:720px;">
+          <div class="modal-title">TUTORIAL</div>
+          <div id="tutBody" class="tut-body"></div>
+          <div class="tut-nav">
+            <button class="btn" id="tutPrev">Back</button>
+            <button class="btn" id="tutExit">Exit</button>
+            <button class="btn btn-primary" id="tutNext">Next</button>
           </div>
         </div>
       </div>
@@ -846,22 +859,26 @@
   /* ---------- Keyboard ---------- */
   document.addEventListener('keydown',(e)=>{
     const tag=(document.activeElement && document.activeElement.tagName||'').toLowerCase();
+    let handled=false;
+
     if(!state.gameStarted && !startModal.classList.contains('hidden') && (e.key===' '||e.key==='Enter') && tag!
   =='input' && tag!=='textarea'){
-      if(canTrackName()){ e.preventDefault(); startGame(); } else { e.preventDefault(); alert('Enter your name to
-  track bests, or click DEMO to start without tracking.'); }
-      return;
+      if(canTrackName()){ startGame(); } else { alert('Enter your name to track bests, or click DEMO to start
+  without tracking.'); }
+      handled=true;
     }
-    if(!state.gameStarted) return;
-    const k=e.key;
-    if(k.toLowerCase()===KEYS.left.toLowerCase()){ move(-1,0); markInput(); }
-    else if(k.toLowerCase()===KEYS.right.toLowerCase()){ move(1,0); markInput(); }
-    else if(k.toLowerCase()===KEYS.down.toLowerCase()){ state.downHeld=true; }
-    else if(k.toLowerCase()===KEYS.rotate.toLowerCase() || k===' '){ rotateCurCW(); markInput(); }
-    else if(k.toLowerCase()===KEYS.hard.toLowerCase()){ hardDrop(); markInput(); }
-    else if(k.toLowerCase()===KEYS.hold.toLowerCase()){ holdSwap(); markInput(); }
-    else if(k.toLowerCase()===KEYS.pause.toLowerCase()){ togglePause(); }
-    e.preventDefault();
+
+    if(state.gameStarted){
+      const k=e.key.toLowerCase();
+      if(k===KEYS.left.toLowerCase()){ move(-1,0); markInput(); handled=true; }
+      else if(k===KEYS.right.toLowerCase()){ move(1,0); markInput(); handled=true; }
+      else if(k===KEYS.down.toLowerCase()){ state.downHeld=true; handled=true; }
+      else if(k===KEYS.rotate.toLowerCase() || e.key===' '){ rotateCurCW(); markInput(); handled=true; }
+      else if(k===KEYS.hard.toLowerCase()){ hardDrop(); markInput(); handled=true; }
+      else if(k===KEYS.hold.toLowerCase()){ holdSwap(); markInput(); handled=true; }
+      else if(k===KEYS.pause.toLowerCase()){ togglePause(); handled=true; }
+    }
+    if(handled) e.preventDefault();
   });
   document.addEventListener('keyup',(e)=>{ if(e.key.toLowerCase()===KEYS.down.toLowerCase())
   state.downHeld=false; });
@@ -871,7 +888,7 @@
   startBtn.addEventListener('click',()=>{ showBests(); updateStartEnabled();
   startModal.classList.remove('hidden'); });
   startModalStartBtn.addEventListener('click',()=>{ startGame(); });
-  startModalDemoBtn.addEventListener('click',()=>{ if(!canTrackName()) playerName.value='Guest'; startGame(); });
+  startModalDemoBtn.addEventListener('click',()=>{ startGame(); }); // no name tracking
   startModalTutBtn.addEventListener('click',()=>{ tut.show(); });
 
   pauseBtn.addEventListener('click',()=>{ togglePause(); });
