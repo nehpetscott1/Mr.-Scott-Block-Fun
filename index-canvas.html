@@ -114,6 +114,30 @@ body.fullscreen-mode .side-panel:first-of-type{
   display:none;
 }
 
+body.fullscreen-mode .side-panel:last-of-type {
+  display:flex;
+  flex-direction:column;
+  overflow-y:auto;
+  max-height:100vh;
+}
+
+body.fullscreen-mode .side-panel:last-of-type .mini-list {
+  display:grid;
+  grid-template-columns:1fr;
+  body.fullscreen-mode .side-panel:last-of-type .panel-title {
+  font-size:.8rem;
+  margin:.2rem 0 .3rem;
+}
+body.fullscreen-mode .side-panel:last-of-type .panel-title {
+  font-size:.8rem;
+  margin:.2rem 0 .3rem;
+}
+body.fullscreen-mode .side-panel:last-of-type .panel-title {
+  font-size:.8rem;
+  margin:.2rem 0 .3rem;
+}
+}
+
 .panel-title{font-size:1rem;font-weight:800;text-align:center;margin:.3rem 0 .6rem}
 .score-item{display:flex;justify-content:space-between;margin-bottom:.35rem;font-size:.95rem}
 .score-value{color:#c8fff0;font-weight:800}
@@ -136,6 +160,10 @@ body.fullscreen-mode .game-board{
   flex:1;
   background:#000;
   margin:0;
+  overflow:hidden;
+  display:flex;
+  align-items:center;
+  justify-content:center;
 }
 
 #gameCanvas{
@@ -151,6 +179,9 @@ body.fullscreen-mode #gameCanvas{
   height:100%;
   max-width:none;
   max-height:none;
+  display:block;
+  object-fit:contain;
+  object-position:center;
 }
 
 .mini-grid{
@@ -167,9 +198,11 @@ body.fullscreen-mode #gameCanvas{
   padding:4px;
 }
 body.fullscreen-mode .mini-grid{
-  width:70px;
-  height:70px;
-  margin:.2rem auto;
+  width:60px;
+  height:60px;
+  margin:.15rem auto;
+  gap:1px;
+  padding:3px;
 }
 
 .preview-cell{background:#00180f;border-radius:3px}
@@ -953,7 +986,8 @@ function animateClearAndApply(rows, onDone){
   animClearing=true;
   let flash=0;
   const max=6;
-  const iv=setInterval(()=>{
+  
+  function animate(){
     flash++;
     for(const y of rows){
       for(let x=0;x<BOARD_WIDTH;x++){
@@ -962,7 +996,6 @@ function animateClearAndApply(rows, onDone){
       }
     }
     if(flash>=max){
-      clearInterval(iv);
       const sorted=rows.slice().sort((a,b)=>a-b);
       for(let i=sorted.length-1;i>=0;i--){
         const y=sorted[i];
@@ -971,8 +1004,11 @@ function animateClearAndApply(rows, onDone){
       }
       animClearing=false;
       onDone && onDone();
+    } else {
+      setTimeout(animate, 70);
     }
-  }, 70);
+  }
+  animate();
 }
 
 function lockPiece(){
