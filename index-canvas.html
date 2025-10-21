@@ -124,6 +124,16 @@ body.fullscreen-mode .side-panel:last-of-type {
 body.fullscreen-mode .side-panel:last-of-type .mini-list {
   display:grid;
   grid-template-columns:1fr;
+  gap:.25rem;
+  overflow-y:auto;
+  flex:1;
+  min-height:0;
+}
+
+body.fullscreen-mode .side-panel:last-of-type .mini-list .mini-grid {
+  width:70px !important;
+  height:70px !important;
+  margin:0 auto !important;
 }
 
 body.fullscreen-mode .side-panel:last-of-type .panel-title {
@@ -144,6 +154,7 @@ body.fullscreen-mode .side-panel:last-of-type .panel-title {
   justify-content:center;
   align-items:center;
   padding:6px;
+  min-height:640px;
 }
 body.fullscreen-mode .game-board{
   border:none;
@@ -982,23 +993,28 @@ function animateClearAndApply(rows, onDone){
   
   function animate(){
     flash++;
+    // Redraw the entire board with the flashing rows
+    drawBoard();
+    
+    // Draw flashing rows on top
     for(const y of rows){
       for(let x=0;x<BOARD_WIDTH;x++){
         ctx.fillStyle=(flash%2===0)?'#9dffb6':'#ffffff';
         ctx.fillRect(x*CSS_CELL+1, y*CSS_CELL+1, CSS_CELL-2, CSS_CELL-2);
       }
     }
+    
     if(flash>=max){
-      const sorted=rows.slice().sort((a,b)=>a-b);
-      for(let i=sorted.length-1;i>=0;i--){
-        const y=sorted[i];
+      // IMPORTANT: Sort rows in descending order to avoid index shifting issues
+      const sorted=rows.slice().sort((a,b)=>b-a);
+      for(const y of sorted){
         state.board.splice(y,1);
         state.board.unshift(Array(BOARD_WIDTH).fill(null));
       }
       animClearing=false;
       onDone && onDone();
     } else {
-      setTimeout(animate, 70);
+      requestAnimationFrame(animate);
     }
   }
   animate();
