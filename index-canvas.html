@@ -34,6 +34,7 @@ body{
 body.fullscreen-mode{
   padding:0;
   overflow:hidden;
+  background:#4B0082;
 }
 
 .mc-bg{position:fixed;inset:0;z-index:-2;pointer-events:none}
@@ -61,6 +62,9 @@ body.fullscreen-mode .container{
   max-width:none;
   margin:0;
   padding:0;
+  height:100vh;
+  display:flex;
+  flex-direction:column;
 }
 
 .title{
@@ -83,9 +87,10 @@ body.fullscreen-mode .subtitle{
 body.fullscreen-mode .game-layout{
   grid-template-columns:1fr auto;
   gap:0;
-  height:100vh;
+  height:100%;
   padding:0;
   margin:0;
+  flex:1;
 }
 
 .side-panel{
@@ -102,6 +107,7 @@ body.fullscreen-mode .side-panel{
   padding:.5rem;
   max-width:150px;
   overflow-y:auto;
+  background:rgba(0,0,0,.3);
 }
 
 body.fullscreen-mode .side-panel:first-of-type{
@@ -129,6 +135,7 @@ body.fullscreen-mode .game-board{
   padding:0;
   flex:1;
   background:#000;
+  margin:0;
 }
 
 #gameCanvas{
@@ -142,6 +149,8 @@ body.fullscreen-mode .game-board{
 body.fullscreen-mode #gameCanvas{
   width:100%;
   height:100%;
+  max-width:none;
+  max-height:none;
 }
 
 .mini-grid{
@@ -475,10 +484,6 @@ body.fullscreen-mode .opt select{
     </div>
   </div>
   <div id="orientHint"><p>For a better classroom experience, rotate your device to <b>landscape</b> or use a wider window. <b>Click inside the game board to enable keyboard controls.</b></p></div>
-
-<script src="mc_tetris_part2.js"></script>
-</body>
-</html>
 
 <script>
 "use strict";
@@ -958,8 +963,9 @@ function animateClearAndApply(rows, onDone){
     }
     if(flash>=max){
       clearInterval(iv);
-      const sorted=rows.slice().sort((a,b)=>b-a);
-      for(const y of sorted){
+      const sorted=rows.slice().sort((a,b)=>a-b);
+      for(let i=sorted.length-1;i>=0;i--){
+        const y=sorted[i];
         state.board.splice(y,1);
         state.board.unshift(Array(BOARD_WIDTH).fill(null));
       }
@@ -991,7 +997,7 @@ function lockPiece(){
     animateClearAndApply(rows, ()=>{
       let gained=LINE_SCORE[rows.length]*Math.max(1,state.level);
       if(tspin){ gained+=TSPIN_BONUS; stats.tspins++; console.log('[Game] T-SPIN detected! Total:', stats.tspins); }
-      if(!state.board.some(r=>r.some(Boolean))&&hadBlocks){ gained+=PERFECT_CLEAR_BONUS; stats.perfects++; }
+      if(!state.board.some(r=>r.some(Boolean))&&hadBlocks){ gained+=PERFECT_CLEAR_BONUS; stats.perfects++; console.log('[Game] PERFECT CLEAR! Total:', stats.perfects); }
       if(optSymbolic.checked){
         const misRate=roll.mis/Math.max(1,roll.locks);
         const mult=Math.max(1,1+0.15*(1-Math.min(1,misRate)));
@@ -1289,9 +1295,8 @@ document.addEventListener('keydown',(e)=>{
   if(state.gameStarted){
     const k=e.key.toLowerCase();
     if(k===KEYS.left.toLowerCase()){ move(-1,0); markInput(); handled=true; }
-    else if(k===KEYS.right.toLowerCase()){ move(1,0); markInput(); handled=true; }
-    else if(k===KEYS.down.toLowerCase()){ state.downHeld=true; handled=true; }
-    else if(k===KEYS.rotate.toLowerCase() || e.key===' '){ rotateCurCW(); markInput(); handled=true; }
+else if(k===KEYS.right.toLowerCase()){ move(1,0); markInput(); handled=true; }
+else if(k===KEYS.down.toLowerCase()){ state.downHeld=true; handled=true; }    else if(k===KEYS.rotate.toLowerCase() || e.key===' '){ rotateCurCW(); markInput(); handled=true; }
     else if(k===KEYS.hard.toLowerCase()){ hardDrop(); markInput(); handled=true; }
     else if(k===KEYS.hold.toLowerCase()){ holdSwap(); markInput(); handled=true; }
     else if(k===KEYS.pause.toLowerCase()){ togglePause(); handled=true; }
@@ -1548,4 +1553,3 @@ window.addEventListener('load',()=>{
 </script>
 </body>
 </html>
-
