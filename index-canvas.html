@@ -479,6 +479,7 @@ body.fullscreen-mode .opt select{
 <script src="mc_tetris_part2.js"></script>
 </body>
 </html>
+
 <script>
 "use strict";
 
@@ -597,8 +598,6 @@ const playerName=mustGet('playerName');
 
 const optAdaptive=mustGet('optAdaptive');
 const optLock=mustGet('optLock');
-const optSeed=mustGet('optSeed');
-const optQueue=mustGet('optQueue');
 const optGhost=mustGet('optGhost');
 const optGhostAlpha=mustGet('optGhostAlpha');
 const optSymbolic=mustGet('optSymbolic');
@@ -1378,7 +1377,6 @@ function startWithSeed(seed){
   else {
     const n=(+seed)||Math.floor(Math.random()*1e9);
     rngSeed=(n>>>0);
-    optSeed.value=String(n);
   }
   lastStartedSeed=rngSeed;
   startGame();
@@ -1410,16 +1408,15 @@ function startGame(){
   const adaptive=optAdaptive.checked;
   const ghost=optGhost.checked;
   const symbolic=optSymbolic.checked;
-  const qsize=+optQueue.value||5;
+  const qsize=5;
   
   const clsSel=clsSeed.value;
   if(clsSel==='daily'){
     rngSeed=dailySeed();
   } else if(/^\d+$/.test(clsSel)){
     rngSeed=(+clsSel)>>>0;
-    optSeed.value=String(rngSeed);
   } else {
-    rngSeed=(+optSeed.value)||Math.floor(Math.random()*1e9)>>>0;
+    rngSeed=Math.floor(Math.random()*1e9)>>>0;
   }
   lastStartedSeed=rngSeed;
 
@@ -1549,4 +1546,6 @@ window.addEventListener('load',()=>{
 });
 
 </script>
+</body>
+</html>
 
