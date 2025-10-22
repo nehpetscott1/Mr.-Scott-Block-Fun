@@ -996,21 +996,26 @@ function animateClearAndApply(rows, onDone){
     // Redraw the entire board with the flashing rows
     drawBoard();
     
-    // Draw flashing rows on top
+    // Draw flashing rows on top (more efficiently)
     for(const y of rows){
-      for(let x=0;x<BOARD_WIDTH;x++){
-        ctx.fillStyle=(flash%2===0)?'#9dffb6':'#ffffff';
-        ctx.fillRect(x*CSS_CELL+1, y*CSS_CELL+1, CSS_CELL-2, CSS_CELL-2);
-      }
+      ctx.fillStyle=(flash%2===0)?'#9dffb6':'#ffffff';
+      ctx.fillRect(0, y*CSS_CELL+1, BOARD_WIDTH*CSS_CELL, CSS_CELL-2);
     }
     
     if(flash>=max){
       // IMPORTANT: Sort rows in descending order to avoid index shifting issues
       const sorted=rows.slice().sort((a,b)=>b-a);
+      
+      // First remove all rows at once
       for(const y of sorted){
         state.board.splice(y,1);
+      }
+      
+      // Then add all new empty rows at once
+      for(let i=0; i<rows.length; i++){
         state.board.unshift(Array(BOARD_WIDTH).fill(null));
       }
+      
       animClearing=false;
       onDone && onDone();
     } else {
